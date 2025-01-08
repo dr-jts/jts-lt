@@ -109,12 +109,6 @@ public class CGAlgorithmsDD
   }
 
   /**
-   * A value which is safely greater than the
-   * relative round-off error in double-precision numbers
-   */
-  private static final double DP_SAFE_EPSILON = 1e-15;
-
-  /**
    * A filter for computing the orientation index of three coordinates.
    * <p>
    * If the orientation can be computed safely using standard DP
@@ -126,7 +120,8 @@ public class CGAlgorithmsDD
    * avoid the use of slower robust methods except when they are really needed,
    * thus providing better average performance.
    * <p>
-   * Uses an approach due to Jonathan Shewchuk, which is in the public domain.
+   * Uses an approach due to Ozaki et al., which is published at 
+   * <a href="https://doi.org/10.1007/s10543-015-0574-9">doi:10.1007/s10543-015-0574-9</a>.
    * 
    * @param pax A coordinate
    * @param pay A coordinate
@@ -140,34 +135,12 @@ public class CGAlgorithmsDD
   private static int orientationIndexFilter(double pax, double pay,
       double pbx, double pby, double pcx, double pcy) 
   {
-    double detsum;
-
     double detleft = (pax - pcx) * (pby - pcy);
     double detright = (pay - pcy) * (pbx - pcx);
     double det = detleft - detright;
 
-    if (detleft > 0.0) {
-      if (detright <= 0.0) {
-        return signum(det);
-      }
-      else {
-        detsum = detleft + detright;
-      }
-    }
-    else if (detleft < 0.0) {
-      if (detright >= 0.0) {
-        return signum(det);
-      }
-      else {
-        detsum = -detleft - detright;
-      }
-    }
-    else {
-      return signum(det);
-    }
-
-    double errbound = DP_SAFE_EPSILON * detsum;
-    if ((det >= errbound) || (-det >= errbound)) {
+    double errbound = Math.abs(detleft + detright) * 3.3306690621773724e-16;
+    if (Math.abs(det) >= errbound) {
       return signum(det);
     }
 
