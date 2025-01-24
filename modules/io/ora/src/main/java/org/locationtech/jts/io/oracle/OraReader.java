@@ -190,6 +190,9 @@ public class OraReader
   Geometry read(OraGeom oraGeom) {
     int ordDim = oraGeom.ordDim();
     if (ordDim < 2) {
+        if(ordDim == 0) {
+            return null;
+        }
     	throw new IllegalArgumentException("Dimension D = " + ordDim + " is not supported by JTS. " +
     			"Either specify a valid dimension or use Oracle Locator Version 9i or later");
     }
