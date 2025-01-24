@@ -51,10 +51,10 @@ public class ScaledNoder
     this.noder = noder;
     this.scaleFactor = scaleFactor;
     // no need to scale if input precision is already integral
-    isScaled = ! isIntegerPrecision();
+    isScaled = ! isInfinitePrecision();
   }
 
-  public boolean isIntegerPrecision() { return scaleFactor == 1.0; }
+  public boolean isInfinitePrecision() { return scaleFactor == 0.0; }
 
   public Collection getNodedSubstrings()
   {
