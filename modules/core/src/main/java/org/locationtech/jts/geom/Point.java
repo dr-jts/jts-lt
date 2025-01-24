@@ -110,7 +110,10 @@ public class Point
   }
 
   public Coordinate getCoordinate() {
-    return coordinates.size() != 0 ? coordinates.getCoordinate(0): null;
+    if (coordinates.size() == 0) {
+      throw new IllegalStateException("getCoordinate called on empty Point");
+    }
+    return coordinates.getCoordinate(0);
   }
 
   public String getGeometryType() {
