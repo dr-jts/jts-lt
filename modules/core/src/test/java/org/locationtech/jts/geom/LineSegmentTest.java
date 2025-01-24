@@ -53,6 +53,37 @@ public class LineSegmentTest extends TestCase {
     assertTrue(seg2.projectionFactor(new Coordinate(11, 0)) == 0.1);
   }
   
+  public void testOrthogonalPoint()
+  {
+	Coordinate l0 = new Coordinate(0, 0);
+	Coordinate l1 = new Coordinate(10, 10);
+    LineSegment seg = new LineSegment(l0, l1);
+    
+    Coordinate orth = seg.orthogonalPoint(new Coordinate(0, 0));
+    assertTrue(orth.equals(l0));
+    
+    orth = seg.orthogonalPoint(new Coordinate(10, 10));
+    assertTrue(orth.equals(l1));
+    
+    orth = seg.orthogonalPoint(new Coordinate(10, 0));
+    assertTrue(orth.equals(new Coordinate(5, 5)));
+    
+    orth = seg.orthogonalPoint(new Coordinate(0, 10));
+    assertTrue(orth.equals(new Coordinate(5, 5)));
+    
+    orth = seg.orthogonalPoint(new Coordinate(10, -10));
+    assertTrue(orth.equals(l0));
+    
+    orth = seg.orthogonalPoint(new Coordinate(-10, 10));
+    assertTrue(orth.equals(l0));
+    
+    orth = seg.orthogonalPoint(new Coordinate(11, 10));
+    assertNull(orth);
+    
+    orth = seg.orthogonalPoint(new Coordinate(-1, 0));
+    assertNull(orth);
+  }
+  
   public void testLineIntersection() {
     // simple case
     checkLineIntersection(

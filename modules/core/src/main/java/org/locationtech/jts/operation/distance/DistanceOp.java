@@ -439,7 +439,7 @@ public class DistanceOp
         if (dist < minDistance) {
           minDistance = dist;
           LineSegment seg = new LineSegment(coord0[i], coord0[i + 1]);
-          Coordinate segClosestPoint = seg.closestPoint(coord);
+          Coordinate segClosestPoint = seg.closestPoint(coord, i > 0);
           locGeom[0] = new GeometryLocation(line, i, segClosestPoint);
           locGeom[1] = new GeometryLocation(pt, 0, coord);
         }
