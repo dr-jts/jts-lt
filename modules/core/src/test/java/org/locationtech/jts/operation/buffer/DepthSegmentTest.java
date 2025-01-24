@@ -80,7 +80,11 @@ public class DepthSegmentTest extends TestCase {
   }
 
   private SubgraphDepthLocater.DepthSegment depthSeg(double x0, double y0, double x1, double y1) {
-    return new SubgraphDepthLocater.DepthSegment(new LineSegment(x0,y0,x1,y1), 0);
+    LineSegment seg = new LineSegment(x0,y0,x1,y1);
+    // DepthSegment compareTo method assumes upward segments
+    if (seg.p0.y > seg.p1.y)
+      seg.reverse();
+    return new SubgraphDepthLocater.DepthSegment(seg, 0);  
   }
 
 }
