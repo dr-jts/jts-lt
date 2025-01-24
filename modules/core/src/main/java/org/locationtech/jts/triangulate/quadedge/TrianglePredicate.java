@@ -95,6 +95,46 @@ public class TrianglePredicate
     return disc > 0;
   }
   
+  public static boolean isInCircleAdapt(
+      Coordinate a, Coordinate b, Coordinate c, 
+      Coordinate p) {
+    double epsilon = Math.ulp(1.0);
+    double iccerrboundA = (10.0 + 96.0 * epsilon) * epsilon;
+    double adx = a.x - p.x;
+    double ady = a.y - p.y;
+    double bdx = b.x - p.x;
+    double bdy = b.y - p.y;
+    double cdx = c.x - p.x;
+    double cdy = c.y - p.y; 
+
+    double bdxcdy = bdx * cdy;
+    double cdxbdy = cdx * bdy;
+    double alift = adx * adx + ady * ady;
+
+    double cdxady = cdx * ady;
+    double adxcdy = adx * cdy;
+    double blift = bdx * bdx + bdy * bdy;
+
+    double adxbdy = adx * bdy;
+    double bdxady = bdx * ady;
+    double clift = cdx * cdx + cdy * cdy;
+
+    double det = alift * (bdxcdy - cdxbdy)
+      + blift * (cdxady - adxcdy)
+      + clift * (adxbdy - bdxady);
+
+    double permanent = (Math.abs(bdxcdy) + Math.abs(cdxbdy)) * alift
+            + (Math.abs(cdxady) + Math.abs(adxcdy)) * blift
+            + (Math.abs(adxbdy) + Math.abs(bdxady)) * clift;
+    double errbound = iccerrboundA * permanent;
+    if (det > errbound) {
+      return true;
+    }
+    if (-det > errbound) {
+      return false;
+    }
+    return isInCircleDDFast(a, b, c, p);
+  }    
   /**
    * Computes twice the area of the oriented triangle (a, b, c), i.e., the area is positive if the
    * triangle is oriented counterclockwise.
@@ -123,9 +163,7 @@ public class TrianglePredicate
       Coordinate a, Coordinate b, Coordinate c, 
       Coordinate p) 
   {
-    //checkRobustInCircle(a, b, c, p);
-//    return isInCircleNonRobust(a, b, c, p);       
-    return isInCircleNormalized(a, b, c, p);       
+    return isInCircleAdapt(a, b, c, p);       
   }
 
   /**
