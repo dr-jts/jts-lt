@@ -16,6 +16,7 @@ import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.CoordinateSequenceFilter;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.ZInterpolating;
 import org.locationtech.jts.math.MathUtil;
 
 /**
@@ -192,6 +193,10 @@ class ElevationModel {
    * @param geom the geometry to populate Z values for
    */
   public void populateZ(Geometry geom) {
+    // short-circuit if ZInterpolation is globally turned off
+    if (!ZInterpolating.getZInterpolating())
+      return;
+
     // short-circuit if no Zs are present in model
     if (! hasZValue)
       return;

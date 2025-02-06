@@ -486,7 +486,7 @@ public class OverlayNG
       result = computeEdgeOverlay();
     }
     /**
-     * This is a no-op if the elevation model was not computed due to Z not present
+     * This is a no-op if the elevation model was not computed due to Z not present or if Z interpolation is turned off
      */
     elevModel.populateZ(result);
     return result;
