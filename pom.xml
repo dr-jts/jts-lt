@@ -42,7 +42,7 @@
         <!-- build environment target versions -->
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
-        <pmd.version>6.36.0</pmd.version>
+        <pmd.version>7.10.0</pmd.version>
         <checkstyle.version>8.44</checkstyle.version>
         <!--cast, deprecation, divzero, empty, fallthrough, finally, overrides, path, serial, and unchecked -->
         <lint>unchecked</lint>
