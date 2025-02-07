@@ -307,7 +307,50 @@ public class WKTReader
       tokenizer.nextToken();
       opened = true;
     }
-    
+
+    // Read x- and y- ordinates
+    double x = precisionModel.makePrecise(getNextNumber(tokenizer));
+    double y = precisionModel.makePrecise(getNextNumber(tokenizer));
+
+    // Coordinate type
+    EnumSet<Ordinate> readOrdinates = Ordinate.createXY();
+
+    // additionally read other vertices
+    double z = Coordinate.NULL_ORDINATE, m = 0d;
+    if (ordinateFlags.contains(Ordinate.Z))
+    {
+      z = getNextNumber(tokenizer);
+      readOrdinates.add(Ordinate.Z);
+    }
+
+    if (ordinateFlags.contains(Ordinate.M))
+    {
+      m = getNextNumber(tokenizer);
+      readOrdinates.add(Ordinate.M);
+    }
+
+    if (ordinateFlags.size() == 2 && isAllowOldJtsCoordinateSyntax && isNumberNext(tokenizer))
+    {
+      z = getNextNumber(tokenizer);
+      readOrdinates.add(Ordinate.Z);
+    }
+
+    Coordinate coord;
+
+    if(readOrdinates.size() == 2) {
+      coord = new CoordinateXY(x, y);
+    } else if(readOrdinates.size() == 4) {
+      coord = new CoordinateXYZM(x, y, z, m);
+    } else if(readOrdinates.size() == 3){
+      if(readOrdinates.contains(Ordinate.Z))
+        coord = new Coordinate(x, y, z);
+      else
+        coord = new CoordinateXYM(x, y, m);
+    } else{
+      throw new ParseException("Unknown ordinate read: {readOrdinates}");
+    }
+
+    /*
     // create a sequence for one coordinate
     int offsetM = ordinateFlags.contains(Ordinate.Z) ? 1 : 0;
     Coordinate coord = createCoordinate(ordinateFlags);
@@ -323,7 +366,8 @@ public class WKTReader
     if (ordinateFlags.size() == 2 && this.isAllowOldJtsCoordinateSyntax && isNumberNext(tokenizer)) {
       coord.setOrdinate(CoordinateSequence.Z, getNextNumber(tokenizer));
     }
-    
+    */
+
     // read close token if it was opened here
     if (opened) {
       getNextCloser(tokenizer);
@@ -339,7 +383,7 @@ public class WKTReader
       return new CoordinateXYZM();
     if (hasM)
       return new CoordinateXYM();
-    if (hasZ || this.isAllowOldJtsCoordinateSyntax) 
+    if (hasZ)
       return new Coordinate();
     return new CoordinateXY();
   }

@@ -464,6 +464,27 @@ public class WKTReaderTest extends GeometryTestCase {
     assertTrue(isEqual(seq, pt3.getCoordinateSequence()));
   }
 
+  public void testDimensionConsistence() throws Exception {
+    //test 2-d point with XY coordinate
+    CoordinateSequence seq1 = createSequence(Ordinate.createXY(), new double[] {10, 10});
+    Point pt1 = (Point)readerXYOld.read("POINT (10 10)");
+    assertTrue(isEqual(seq1, pt1.getCoordinateSequence()));
+
+    //test 2-d point with XYZ coordinate
+    CoordinateSequence seq2 = createSequence(Ordinate.createXYZ(), new double[] { 10, 10 });
+    seq2.setOrdinate(0, 2, Double.NaN);
+    Point pt2 = (Point)this.readerXYOld.read("POINT (10 10 NaN)");
+    assertTrue(isEqual(seq2, pt2.getCoordinateSequence()));
+
+    //test points sequence
+    CoordinateSequence seq3 = createSequence(Ordinate.createXYZ(), new double[] { 10, 10, 20, 20, 30, 30 });
+    seq3.setOrdinate(0, 2, Double.NaN);
+    seq3.setOrdinate(1, 2, 25);
+    seq3.setOrdinate(2, 2, Double.NaN);
+    LineString ls = (LineString)this.readerXYOld.read("LINESTRING (10 10 NaN, 20 20 25, 30 30 NaN)");
+    assertTrue(isEqual(seq3, ls.getCoordinateSequence()));
+  }
+
   public void testLargeNumbers() throws Exception {
     PrecisionModel precisionModel = new PrecisionModel(1E9);
     GeometryFactory geometryFactory = new GeometryFactory(precisionModel, 0);
