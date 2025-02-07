@@ -48,7 +48,7 @@ public class CommonBits {
   public static int numCommonMostSigMantissaBits(long num1, long num2)
   {
     int count = 0;
-    for (int i = 52; i >= 0; i--)
+    for (int i = 51; i >= 0; i--)
     {
       if (getBit(num1, i) != getBit(num2, i))
         return count;
