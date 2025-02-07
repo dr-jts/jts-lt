@@ -19,6 +19,7 @@ import org.locationtech.jts.coverage.CoveragePolygonValidator;
 import org.locationtech.jts.coverage.CoverageSimplifier;
 import org.locationtech.jts.coverage.CoverageUnion;
 import org.locationtech.jts.coverage.CoverageValidator;
+import org.locationtech.jts.coverage.CoverageEdgeExtractor;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.util.PolygonExtracter;
 import org.locationtech.jtstest.geomfunction.Metadata;
@@ -53,19 +54,25 @@ public class CoverageFunctions {
     return CoverageGapFinder.findGaps(toGeometryArray(geom),gapWidth);
   }
 
+  @Metadata(description="Extract edges from a coverage")
+  public static Geometry extractEdges(Geometry geom) {
+    Geometry[] edges = CoverageEdgeExtractor.extract(toGeometryArray(geom));
+    return FunctionsUtil.buildGeometryCollection(edges, geom.getFactory().createLineString());
+  }
+
   @Metadata(description="Fast Union of a coverage")
   public static Geometry union(Geometry coverage) {
     Geometry[] cov = toGeometryArray(coverage);
     return CoverageUnion.union(cov);
   }
-  
+
   @Metadata(description="Simplify a coverage")
   public static Geometry simplify(Geometry coverage, double tolerance) {
     Geometry[] cov = toGeometryArray(coverage);
     Geometry[] result =  CoverageSimplifier.simplify(cov, tolerance);
     return coverage.getFactory().createGeometryCollection(result);
   }
-  
+
   @Metadata(description="Simplify a coverage with a smoothness weight")
   public static Geometry simplifySharp(Geometry coverage, 
       @Metadata(title="Distance tol")
