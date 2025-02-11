@@ -532,9 +532,23 @@ public class LineSegment
    */
   public Coordinate closestPoint(Coordinate p)
   {
+    return closestPoint(p, false);
+  }
+  
+  /**
+   * Computes the closest point on this line segment to another point.
+   * @param p the point to find the closest point to
+   * @param skip0 If true, do not check p0. Client will have determined this is redundant.
+   * @return a Coordinate which is the closest point on the line segment to the point p
+   */
+  public Coordinate closestPoint(Coordinate p, boolean skip0)
+  {
     double factor = projectionFactor(p);
     if (factor > 0 && factor < 1) {
       return project(p, factor);
+    }
+    if (skip0) {
+    	return p1;
     }
     double dist0 = p0.distance(p);
     double dist1 = p1.distance(p);
@@ -542,6 +556,7 @@ public class LineSegment
       return p0;
     return p1;
   }
+  
   /**
    * Computes the closest points on two line segments.
    * 
