@@ -11,15 +11,19 @@
  */
 package org.locationtech.jts.operation.overlayarea;
 
-import org.locationtech.jts.algorithm.LineIntersector;
 import org.locationtech.jts.algorithm.Orientation;
 import org.locationtech.jts.algorithm.RayCrossingCounter;
-import org.locationtech.jts.algorithm.RobustLineIntersector;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.Location;
 import org.locationtech.jts.geom.Polygon;
+import org.locationtech.jts.noding.BasicSegmentString;
+import org.locationtech.jts.noding.SegmentSetMutualIntersector;
+import org.locationtech.jts.noding.SegmentString;
+import org.locationtech.jts.noding.SimpleSegmentSetMutualIntersector;
+
+import java.util.Collections;
 
 /**
  * Computes the result area of an overlay usng the Overlay-Area, for simple polygons.
@@ -78,59 +82,14 @@ public class SimpleOverlayArea {
   }
   
   private double areaForIntersections(CoordinateSequence ringA, boolean isCCWA, CoordinateSequence ringB, boolean isCCWB) {
-    //TODO: use fast intersection computation?
-    
-    // Compute rays for all intersections
-    LineIntersector li = new RobustLineIntersector();
-    
-    double area = 0;
-    for (int i = 0; i < ringA.size()-1; i++) {
-      Coordinate a0 = ringA.getCoordinate(i);
-      Coordinate a1 = ringA.getCoordinate(i+1);
-      
-      if (isCCWA) {
-        // flip segment orientation
-        Coordinate temp = a0; a0 = a1; a1 = temp;
-      }
-      
-      for (int j = 0; j < ringB.size()-1; j++) {
-        Coordinate b0 = ringB.getCoordinate(j);
-        Coordinate b1 = ringB.getCoordinate(j+1);
-        
-        if (isCCWB) {
-          // flip segment orientation
-          Coordinate temp = b0; b0 = b1; b1 = temp;
-        }
-        
-        li.computeIntersection(a0, a1, b0, b1);
-        if (li.hasIntersection()) {
-          
-          /**
-           * With both rings oriented CW (effectively)
-           * There are two situations for segment intersections:
-           * 
-           * 1) A entering B, B exiting A => rays are IP-A1:R, IP-B0:L
-           * 2) A exiting B, B entering A => rays are IP-A0:L, IP-B1:R
-           * (where :L/R indicates result is to the Left or Right).
-           * 
-           * Use full edge to compute direction, for accuracy.
-           */
-          Coordinate intPt = li.getIntersection(0);
-          
-          boolean isAenteringB = Orientation.COUNTERCLOCKWISE == Orientation.index(a0, a1, b1);
-          
-          if ( isAenteringB ) {
-            area += EdgeVector.area2Term(intPt, a0, a1, true);
-            area += EdgeVector.area2Term(intPt, b1, b0, false);
-          }
-          else {
-            area += EdgeVector.area2Term(intPt, a1, a0, false);
-            area += EdgeVector.area2Term(intPt, b0, b1, true);
-          }
-        }
-      }
-    }
-    return area;
+    SegmentString segStrA = new BasicSegmentString(ringA.toCoordinateArray(), isCCWA);
+    SegmentString segStrB = new BasicSegmentString(ringB.toCoordinateArray(), isCCWB);
+
+    IntersectionVisitor intVisitor = new IntersectionVisitor();
+    SegmentSetMutualIntersector segSetMutInt = new SimpleSegmentSetMutualIntersector(Collections.singleton(segStrA));
+    segSetMutInt.process(Collections.singletonList(segStrB), intVisitor);
+
+    return intVisitor.getArea();
   }
     
   private double areaForInteriorVertices(CoordinateSequence ring, boolean isCCW, CoordinateSequence ring2) {
