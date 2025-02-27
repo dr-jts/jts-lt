@@ -296,16 +296,23 @@ public class Polygonizer
     findOuterShells(shellList);
     
     boolean isMoreToScan;
+    int lastUnsetNumber = -1;
     do {
       isMoreToScan = false;
+      int unsetNumber = 0;
       for (EdgeRing er : shellList) {
         if (er.isIncludedSet()) 
           continue;
+        unsetNumber++;
         er.updateIncluded();
         if (! er.isIncludedSet()) {
           isMoreToScan = true;
         }
       }
+      if (unsetNumber > 0 && unsetNumber == lastUnsetNumber) {
+        throw new IllegalStateException("Failed to polygonize with extractOnlyPolygonal option : input may not be correctly noded");
+      }
+      lastUnsetNumber = unsetNumber;
     } while (isMoreToScan);
   }
 
