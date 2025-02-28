@@ -51,6 +51,10 @@ public class PackedCoordinateSequenceTest
   public void testFloat() {
     checkAll( PackedCoordinateSequenceFactory.FLOAT_FACTORY) ;
   }
+
+  public void testDouble2() {
+    checkAll( PackedCoordinateSequenceFactory.DOUBLE2_FACTORY) ;
+  }
   
   public void checkAll(CoordinateSequenceFactory factory)
   {
