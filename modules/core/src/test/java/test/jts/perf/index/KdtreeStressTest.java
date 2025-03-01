@@ -36,6 +36,8 @@ public class KdtreeStressTest {
     }
     System.out.format("Queries complete\n");
   }
+  
+  
 
   /**
    * Create an unbalanced tree by loading a 
@@ -52,4 +54,5 @@ public class KdtreeStressTest {
     }
     return index;
   }
+
 }

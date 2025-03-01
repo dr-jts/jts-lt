@@ -15,43 +15,42 @@ package org.locationtech.jts.index.kdtree;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Deque;
 import java.util.Iterator;
 import java.util.List;
+import java.util.PriorityQueue;
 
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateList;
 import org.locationtech.jts.geom.Envelope;
 
 /**
- * An implementation of a 
- * <a href='https://en.wikipedia.org/wiki/K-d_tree'>KD-Tree</a> 
- * over two dimensions (X and Y). 
- * KD-trees provide fast range searching and fast lookup for point data.
- * The tree is built dynamically by inserting points.
- * The tree supports queries by range and for point equality.
- * For querying an internal stack is used instead of recursion to avoid overflow. 
+ * A 2D <a href='https://en.wikipedia.org/wiki/K-d_tree'>KD-Tree</a> spatial
+ * index for efficient point query and retrieval.
+ * <p>
+ * KD-trees provide fast range searching and fast lookup for point data. The
+ * tree is built dynamically by inserting points. The tree supports queries by
+ * location and range, and for point equality. For querying, an internal stack
+ * is used instead of recursion to avoid overflow.
  * <p>
  * This implementation supports detecting and snapping points which are closer
- * than a given distance tolerance. 
- * If the same point (up to tolerance) is inserted
- * more than once, it is snapped to the existing node.
- * In other words, if a point is inserted which lies 
- * within the tolerance of a node already in the index,
- * it is snapped to that node. 
- * When an inserted point is snapped to a node then a new node is not created 
- * but the count of the existing node is incremented.  
- * If more than one node in the tree is within tolerance of an inserted point, 
- * the closest and then lowest node is snapped to.
+ * than a given distance tolerance. If the same point (up to tolerance) is
+ * inserted more than once, it is snapped to the existing node. In other words,
+ * if a point is inserted which lies within the tolerance of a node already in
+ * the index, it is snapped to that node. When an inserted point is snapped to a
+ * node then a new node is not created but the count of the existing node is
+ * incremented. If more than one node in the tree is within tolerance of an
+ * inserted point, the closest and then lowest node is snapped to.
  * <p>
- * The structure of a KD-Tree depends on the order of insertion of the points.
- * A tree may become unbalanced if the inserted points are coherent 
- * (e.g. monotonic in one or both dimensions).
- * A perfectly balanced tree has depth of only log2(N), 
- * but an unbalanced tree may be much deeper.
- * This has a serious impact on query efficiency.  
- * One solution to this is to randomize the order of points before insertion
- * (e.g. by using <a href="https://en.wikipedia.org/wiki/Fisher%E2%80%93Yates_shuffle">Fisher-Yates shuffling</a>).
+ * The structure of a KD-Tree depends on the order of insertion of the points. A
+ * tree may become unbalanced if the inserted points are coherent (e.g.
+ * monotonic in one or both dimensions). A perfectly balanced tree has depth of
+ * only log2(N), but an unbalanced tree may be much deeper. This has a serious
+ * impact on query efficiency. One solution to this is to randomize the order of
+ * points before insertion (e.g. by using <a href=
+ * "https://en.wikipedia.org/wiki/Fisher%E2%80%93Yates_shuffle">Fisher-Yates
+ * shuffling</a>).
  * 
  * @author David Skea
  * @author Martin Davis
@@ -65,7 +64,7 @@ public class KdTree {
    *          a collection of nodes
    * @return an array of the coordinates represented by the nodes
    */
-  public static Coordinate[] toCoordinates(Collection kdnodes) {
+  public static Coordinate[] toCoordinates(Collection<KdNode> kdnodes) {
     return toCoordinates(kdnodes, false);
   }
 
@@ -80,9 +79,9 @@ public class KdTree {
    *   be included multiple times
    * @return an array of the coordinates represented by the nodes
    */
-  public static Coordinate[] toCoordinates(Collection kdnodes, boolean includeRepeated) {
+  public static Coordinate[] toCoordinates(Collection<KdNode> kdnodes, boolean includeRepeated) {
     CoordinateList coord = new CoordinateList();
-    for (Iterator it = kdnodes.iterator(); it.hasNext();) {
+    for (Iterator<KdNode> it = kdnodes.iterator(); it.hasNext();) {
       KdNode node = (KdNode) it.next();
       int count = includeRepeated ? node.getCount() : 1;
       for (int i = 0; i < count; i++) {
@@ -94,7 +93,8 @@ public class KdTree {
 
   private KdNode root = null;
   private long numberOfNodes;
-  private double tolerance;
+  private final double tolerance;
+  private final double toleranceSq;
 
   /**
    * Creates a new instance of a KdTree with a snapping tolerance of 0.0. (I.e.
@@ -114,6 +114,7 @@ public class KdTree {
    */
   public KdTree(double tolerance) {
     this.tolerance = tolerance;
+    this.toleranceSq = tolerance*tolerance;
   }
 
   /**
@@ -179,6 +180,180 @@ public class KdTree {
     
     return insertExact(p, data);
   }
+  
+  /**
+   * Finds the nearest node in the tree to the given query point.
+   * 
+   * @param query the query point
+   * @return the nearest node, or null if the tree is empty
+   */
+  public KdNode nearestNeighbor(final Coordinate query) {
+    if (root == null) {
+      return null;
+    }
+
+    KdNode bestNode = null;
+    double bestDistance = Double.POSITIVE_INFINITY;
+    Deque<NNStackFrame> stack = new ArrayDeque<>();
+    KdNode currentNode = root;
+    boolean isXLevel = true;
+
+    while (currentNode != null || !stack.isEmpty()) {
+      if (currentNode != null) {
+        double currentDist = query.distanceSq(currentNode.getCoordinate());
+        if (currentDist < bestDistance) {
+          bestNode = currentNode;
+          bestDistance = currentDist;
+          if (bestDistance == 0) {
+              return bestNode; // Early termination
+          }
+        }
+
+        boolean currentIsXLevel = isXLevel;
+        double splitValue = currentNode.splitValue(currentIsXLevel);
+        KdNode nextNode;
+        KdNode otherNode;
+
+        if (currentIsXLevel) {
+          if (query.x < splitValue) {
+            nextNode = currentNode.getLeft();
+            otherNode = currentNode.getRight();
+          } else {
+            nextNode = currentNode.getRight();
+            otherNode = currentNode.getLeft();
+          }
+        } else {
+          if (query.y < splitValue) {
+            nextNode = currentNode.getLeft();
+            otherNode = currentNode.getRight();
+          } else {
+            nextNode = currentNode.getRight();
+            otherNode = currentNode.getLeft();
+          }
+        }
+
+        stack.push(new NNStackFrame(otherNode, currentIsXLevel, splitValue));
+        currentNode = nextNode;
+        isXLevel = !currentIsXLevel;
+      } else {
+        NNStackFrame frame = stack.pop();
+        KdNode otherNode = frame.node;
+        boolean parentSplitAxis = frame.parentSplitAxis;
+        double parentSplitValue = frame.parentSplitValue;
+
+        double diff = parentSplitAxis 
+        	    ? query.x - parentSplitValue
+        	    : query.y - parentSplitValue;
+        double distanceToSplitSq = diff * diff;
+
+        if (distanceToSplitSq < bestDistance) {
+          currentNode = otherNode;
+          isXLevel = !parentSplitAxis;
+        } else {
+          currentNode = null;
+        }
+      }
+    }
+
+    return bestNode;
+  }
+  
+  /**
+   * Finds the nearest N nodes in the tree to the given query point.
+   * 
+   * @param query the query point
+   * @param n the number of nearest nodes to find
+   * @return a list of the nearest nodes, sorted by distance (closest first), or an empty list if the tree is empty.
+   */
+  public List<KdNode> nearestNeighbors(final Coordinate query, final int n) {
+	    if (root == null || n <= 0) {
+	      return Collections.emptyList();
+	    }
+
+	    PriorityQueue<KdNode> heap = new PriorityQueue<>(n, (n1, n2) -> 
+	        Double.compare(query.distanceSq(n2.getCoordinate()), query.distanceSq(n1.getCoordinate()))
+	    );
+
+	    Deque<NNStackFrame> stack = new ArrayDeque<>();
+	    KdNode currentNode = root;
+	    boolean isXLevel = true;
+
+	    while (currentNode != null || !stack.isEmpty()) {
+	      if (currentNode != null) {
+	        double currentDist = query.distanceSq(currentNode.getCoordinate());
+            if (heap.size() < n || currentDist < query.distanceSq(heap.peek().getCoordinate())) {
+                if (heap.size() == n) {
+                    heap.poll();
+                }
+                heap.offer(currentNode);
+            }
+
+	        boolean currentIsXLevel = isXLevel;
+	        double splitValue = currentNode.splitValue(currentIsXLevel);
+	        KdNode nextNode;
+	        KdNode otherNode;
+
+	        if (currentIsXLevel) {
+	          if (query.x < splitValue) {
+	            nextNode = currentNode.getLeft();
+	            otherNode = currentNode.getRight();
+	          } else {
+	            nextNode = currentNode.getRight();
+	            otherNode = currentNode.getLeft();
+	          }
+	        } else {
+	          if (query.y < splitValue) {
+	            nextNode = currentNode.getLeft();
+	            otherNode = currentNode.getRight();
+	          } else {
+	            nextNode = currentNode.getRight();
+	            otherNode = currentNode.getLeft();
+	          }
+	        }
+
+	        stack.push(new NNStackFrame(otherNode, currentIsXLevel, splitValue));
+	        currentNode = nextNode;
+	        isXLevel = !currentIsXLevel;
+	      } else {
+	        NNStackFrame frame = stack.pop();
+	        KdNode otherNode = frame.node;
+	        boolean parentSplitAxis = frame.parentSplitAxis;
+	        double parentSplitValue = frame.parentSplitValue;
+
+	        double diff = parentSplitAxis 
+	        	    ? query.x - parentSplitValue
+	        	    : query.y - parentSplitValue;
+	        double distanceToSplitSq = diff * diff;
+
+	        double currentMaxDist = heap.isEmpty() ? Double.POSITIVE_INFINITY : query.distanceSq(heap.peek().getCoordinate());
+
+	        if (distanceToSplitSq < currentMaxDist || heap.size() < n) {
+	          currentNode = otherNode;
+	          isXLevel = !parentSplitAxis;
+	        } else {
+	          currentNode = null;
+	        }
+	      }
+	    }
+
+	    List<KdNode> result = new ArrayList<>(heap);
+	    Collections.sort(result, (n1, n2) -> 
+	    	Double.compare(query.distanceSq(n1.getCoordinate()), query.distanceSq(n2.getCoordinate()))
+	    );
+	    return result;
+	  }
+  
+  private static class NNStackFrame {
+	    KdNode node;
+	    boolean parentSplitAxis;
+	    double parentSplitValue;
+
+	    NNStackFrame(KdNode node, boolean parentSplitAxis, double parentSplitValue) {
+	      this.node = node;
+	      this.parentSplitAxis = parentSplitAxis;
+	      this.parentSplitValue = parentSplitValue;
+	    }
+	  }
     
   /**
    * Finds the node in the tree which is the best match for a point
@@ -189,10 +364,9 @@ public class KdTree {
    * existing node.
    * 
    * @param p the point being inserted
-   * @return the best matching node
-   * @return null if no match was found
+   * @return the best matching node. null if no match was found.
    */
-  private KdNode findBestMatchNode(Coordinate p) {
+  public KdNode findBestMatchNode(Coordinate p) {
     BestMatchVisitor visitor = new BestMatchVisitor(p, tolerance);
     query(visitor.queryEnvelope(), visitor);
     return visitor.getNode();
@@ -259,7 +433,7 @@ public class KdTree {
      * then top-bottom (by Y ordinate)
      */
     while (currentNode != null) {
-      boolean isInTolerance = p.distance(currentNode.getCoordinate()) <= tolerance;
+      boolean isInTolerance = p.distanceSq(currentNode.getCoordinate()) <= toleranceSq;
 
       // check if point is already in tree (up to tolerance) and if so simply
       // return existing node
@@ -276,10 +450,8 @@ public class KdTree {
       }
       leafNode = currentNode;
       if (isLessThan) {
-        //System.out.print("L");
         currentNode = currentNode.getLeft();
       } else {
-        //System.out.print("R");
         currentNode = currentNode.getRight();
       }
 
@@ -377,8 +549,8 @@ public class KdTree {
    * @param queryEnv the range rectangle to query
    * @return a list of the KdNodes found
    */
-  public List query(Envelope queryEnv) {
-    final List result = new ArrayList();
+  public List<KdNode> query(Envelope queryEnv) {
+    final List<KdNode> result = new ArrayList<KdNode>();
     query(queryEnv, result);
     return result;
   }
@@ -391,7 +563,7 @@ public class KdTree {
    * @param result
    *          a list to accumulate the result nodes into
    */
-  public void query(Envelope queryEnv, final List result) {
+  public void query(Envelope queryEnv, final List<KdNode> result) {
     query(queryEnv, new KdNodeVisitor() {
 
       public void visit(KdNode node) {
@@ -426,6 +598,35 @@ public class KdTree {
     //-- point not found
     return null;           
   }
+  
+	/**
+	 * Performs an in-order traversal of the tree, collecting and returning all
+	 * nodes that have been inserted.
+	 * 
+	 * @return A list containing all nodes in the KdTree. Returns an empty list if
+	 *         the tree is empty.
+	 */
+	public List<KdNode> getNodes() {
+		List<KdNode> nodeList = new ArrayList<>();
+		if (root == null) {
+			return nodeList; // empty list for empty tree
+		}
+
+		Deque<KdNode> stack = new ArrayDeque<>();
+		KdNode currentNode = root;
+
+		while (currentNode != null || !stack.isEmpty()) {
+			if (currentNode != null) {
+				stack.push(currentNode);
+				currentNode = currentNode.getLeft();
+			} else {
+				currentNode = stack.pop();
+				nodeList.add(currentNode);
+				currentNode = currentNode.getRight();
+			}
+		}
+		return nodeList;
+	}
 
   /**
    * Computes the depth of the tree.
