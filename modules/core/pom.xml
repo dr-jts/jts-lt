@@ -17,6 +17,27 @@
     <build>
         <plugins>
             <plugin>
+                <groupId>org.jboss.bridger</groupId>
+                <artifactId>bridger</artifactId>
+                <version>1.5.Final</version>
+                <executions>
+                    <execution>
+                        <id>weave</id>
+                        <phase>process-classes</phase>
+                        <goals>
+                            <goal>transform</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <dependencies>
+                    <dependency>
+                        <groupId>org.ow2.asm</groupId>
+                        <artifactId>asm</artifactId>
+                        <version>9.2</version>
+                    </dependency>
+                </dependencies>
+            </plugin>
+	    <plugin>
                 <artifactId>maven-jar-plugin</artifactId>
                 <configuration>
                   <archive>

@@ -210,6 +210,13 @@ public class Polygon
     return shell;
   }
 
+  /**
+   * @hidden
+   */
+  public LineString getExteriorRing$$bridge() {
+    return getExteriorRing();
+  }
+
   public int getNumInteriorRing() {
     return holes.length;
   }
