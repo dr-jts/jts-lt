@@ -381,72 +381,80 @@ public class WKBWriter
    */
   public void write(Geometry geom, OutStream os) throws IOException
   {
+    // evaluate the ordinates actually present in the geometry
+    EnumSet<Ordinate> actualOutputOrdinates = this.outputOrdinates;
+    if (!geom.isEmpty()) {
+      CheckOrdinatesFilter cof = new CheckOrdinatesFilter(this.outputOrdinates);
+      geom.apply(cof);
+      actualOutputOrdinates = cof.getOutputOrdinates();
+    }
+
     if (geom instanceof Point)
-      writePoint((Point) geom, os);
+      writePoint((Point) geom, actualOutputOrdinates, os);
     // LinearRings will be written as LineStrings
     else if (geom instanceof LineString)
-      writeLineString((LineString) geom, os);
+      writeLineString((LineString) geom, actualOutputOrdinates, os);
     else if (geom instanceof Polygon)
-      writePolygon((Polygon) geom, os);
+      writePolygon((Polygon) geom, actualOutputOrdinates, os);
     else if (geom instanceof MultiPoint)
       writeGeometryCollection(WKBConstants.wkbMultiPoint, 
-          (MultiPoint) geom, os);
+          (MultiPoint) geom, actualOutputOrdinates, os);
     else if (geom instanceof MultiLineString)
       writeGeometryCollection(WKBConstants.wkbMultiLineString,
-          (MultiLineString) geom, os);
+          (MultiLineString) geom, actualOutputOrdinates, os);
     else if (geom instanceof MultiPolygon)
       writeGeometryCollection(WKBConstants.wkbMultiPolygon,
-          (MultiPolygon) geom, os);
+          (MultiPolygon) geom, actualOutputOrdinates, os);
     else if (geom instanceof GeometryCollection)
       writeGeometryCollection(WKBConstants.wkbGeometryCollection,
-          (GeometryCollection) geom, os);
+          (GeometryCollection) geom, actualOutputOrdinates, os);
     else {
       Assert.shouldNeverReachHere("Unknown Geometry type");
     }
   }
 
-  private void writePoint(Point pt, OutStream os) throws IOException
+  private void writePoint(Point pt, EnumSet<Ordinate> outputOrdinates, OutStream os) throws IOException
   {
     writeByteOrder(os);
-    writeGeometryType(WKBConstants.wkbPoint, pt, os);
+    writeGeometryType(WKBConstants.wkbPoint, outputOrdinates, pt, os);
     if (pt.getCoordinateSequence().size() == 0) {
       // write empty point as NaNs (extension to OGC standard)
-      writeNaNs(outputDimension, os);
+      writeNaNs(outputOrdinates, os);
     } else {
-      writeCoordinateSequence(pt.getCoordinateSequence(), false, os);
+      writeCoordinateSequence(pt.getCoordinateSequence(), outputOrdinates, false, os);
     }
   }
 
-  private void writeLineString(LineString line, OutStream os)
+  private void writeLineString(LineString line, EnumSet<Ordinate> outputOrdinates, OutStream os)
       throws IOException
   {
     writeByteOrder(os);
-    writeGeometryType(WKBConstants.wkbLineString, line, os);
-    writeCoordinateSequence(line.getCoordinateSequence(), true, os);
+    writeGeometryType(WKBConstants.wkbLineString, outputOrdinates, line, os);
+    writeCoordinateSequence(line.getCoordinateSequence(), outputOrdinates, true, os);
   }
 
-  private void writePolygon(Polygon poly, OutStream os) throws IOException
+  private void writePolygon(Polygon poly, EnumSet<Ordinate> outputOrdinates, OutStream os) throws IOException
   {
     writeByteOrder(os);
-    writeGeometryType(WKBConstants.wkbPolygon, poly, os);
+    writeGeometryType(WKBConstants.wkbPolygon, outputOrdinates, poly, os);
     //--- write empty polygons with no rings (OCG extension)
     if (poly.isEmpty()) {
       writeInt(0, os);
       return;
     }
     writeInt(poly.getNumInteriorRing() + 1, os);
-    writeCoordinateSequence(poly.getExteriorRing().getCoordinateSequence(), true, os);
+    writeCoordinateSequence(poly.getExteriorRing().getCoordinateSequence(), outputOrdinates, true, os);
     for (int i = 0; i < poly.getNumInteriorRing(); i++) {
-      writeCoordinateSequence(poly.getInteriorRingN(i).getCoordinateSequence(), true,
+      writeCoordinateSequence(poly.getInteriorRingN(i).getCoordinateSequence(), outputOrdinates, true,
           os);
     }
   }
 
-  private void writeGeometryCollection(int geometryType, GeometryCollection gc,
+  private void writeGeometryCollection(int geometryType, GeometryCollection gc, EnumSet<Ordinate> outputOrdinates,
       OutStream os) throws IOException
   {
     writeByteOrder(os);
-    writeGeometryType(geometryType, gc, os);
+    writeGeometryType(geometryType, outputOrdinates, gc, os);
     writeInt(gc.getNumGeometries(), os);
     boolean originalIncludeSRID = this.includeSRID;
     this.includeSRID = false;
@@ -465,7 +473,7 @@ public class WKBWriter
     os.write(buf, 1);
   }
 
-  private void writeGeometryType(int geometryType, Geometry g, OutStream os)
+  private void writeGeometryType(int geometryType, EnumSet<Ordinate> outputOrdinates, Geometry g, OutStream os)
       throws IOException
   {
     int ordinals = 0;
@@ -492,18 +500,20 @@ public class WKBWriter
     os.write(buf, 4);
   }
 
-  private void writeCoordinateSequence(CoordinateSequence seq, boolean writeSize, OutStream os)
+  private void writeCoordinateSequence(CoordinateSequence seq, EnumSet<Ordinate> outputOrdinates, boolean writeSize, OutStream os)
       throws IOException
   {
     if (writeSize)
       writeInt(seq.size(), os);
 
+    boolean hasZ = outputOrdinates.contains(Ordinate.Z);
+    boolean hasM = outputOrdinates.contains(Ordinate.M);
     for (int i = 0; i < seq.size(); i++) {
-      writeCoordinate(seq, i, os);
+      writeCoordinate(seq, hasZ, hasM, i, os);
     }
   }
 
-  private void writeCoordinate(CoordinateSequence seq, int index, OutStream os)
+  private void writeCoordinate(CoordinateSequence seq, boolean hasZ, boolean hasM, int index, OutStream os)
   throws IOException
   {
     ByteOrderValues.putDouble(seq.getX(index), buf, byteOrder);
@@ -512,25 +522,26 @@ public class WKBWriter
     os.write(buf, 8);
     
     // only write 3rd dim if caller has requested it for this writer
-    if (outputDimension >= 3) {
+    if (hasZ) {
       // if 3rd dim is requested, only write it if the CoordinateSequence provides it
-      double ordVal = seq.getOrdinate(index, 2);
+      double ordVal = seq.getZ(index);
       ByteOrderValues.putDouble(ordVal, buf, byteOrder);
       os.write(buf, 8);
     }
     // only write 4th dim if caller has requested it for this writer
-    if (outputDimension == 4) {
+    if (hasM) {
       // if 4th dim is requested, only write it if the CoordinateSequence provides it
-      double ordVal = seq.getOrdinate(index, 3);
+      double ordVal = seq.getM(index);
       ByteOrderValues.putDouble(ordVal, buf, byteOrder);
       os.write(buf, 8);
     }
   }
   
-  private void writeNaNs(int numNaNs, OutStream os)
+  private void writeNaNs(EnumSet<Ordinate> outputOrdinates, OutStream os)
       throws IOException
   {
-    for (int i = 0; i < numNaNs; i++) {
+    int dims = outputOrdinates.size();
+    for (int i = 0; i < dims; i++) {
       ByteOrderValues.putDouble(Double.NaN, buf, byteOrder);
       os.write(buf, 8);
     }

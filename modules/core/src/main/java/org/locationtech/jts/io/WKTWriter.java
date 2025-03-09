@@ -19,7 +19,6 @@ import java.util.EnumSet;
 
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
-import org.locationtech.jts.geom.CoordinateSequenceFilter;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryCollection;
 import org.locationtech.jts.geom.LineString;
@@ -173,60 +172,6 @@ public class WKTWriter
       buf.append(ch);
     }
     return buf.toString();
-  }
-
-  /**
-   * A filter implementation to test if a coordinate sequence actually has
-   * meaningful values for an ordinate bit-pattern
-   */
-  private class CheckOrdinatesFilter implements CoordinateSequenceFilter {
-
-    private final EnumSet<Ordinate> checkOrdinateFlags;
-    private final EnumSet<Ordinate> outputOrdinates;
-
-    /**
-     * Creates an instance of this class
-
-     * @param checkOrdinateFlags the index for the ordinates to test.
-     */
-    private CheckOrdinatesFilter(EnumSet<Ordinate> checkOrdinateFlags) {
-
-      this.outputOrdinates = EnumSet.of(Ordinate.X, Ordinate.Y);
-      this.checkOrdinateFlags = checkOrdinateFlags;
-    }
-
-    /** @see org.locationtech.jts.geom.CoordinateSequenceFilter#isGeometryChanged */
-    public void filter(CoordinateSequence seq, int i) {
-
-      if (checkOrdinateFlags.contains(Ordinate.Z) && !outputOrdinates.contains(Ordinate.Z)) {
-        if (!Double.isNaN(seq.getZ(i)))
-          outputOrdinates.add(Ordinate.Z);
-      }
-
-      if (checkOrdinateFlags.contains(Ordinate.M) && !outputOrdinates.contains(Ordinate.M)) {
-        if (!Double.isNaN(seq.getM(i)))
-          outputOrdinates.add(Ordinate.M);
-      }
-    }
-
-    /** @see org.locationtech.jts.geom.CoordinateSequenceFilter#isGeometryChanged */
-    public boolean isGeometryChanged() {
-      return false;
-    }
-
-    /** @see org.locationtech.jts.geom.CoordinateSequenceFilter#isDone */
-    public boolean isDone() {
-      return outputOrdinates.equals(checkOrdinateFlags);
-    }
-
-    /**
-     * Gets the evaluated ordinate bit-pattern
-     *
-     * @return A bit-pattern of ordinates with valid values masked by {@link #checkOrdinateFlags}.
-     */
-    EnumSet<Ordinate> getOutputOrdinates() {
-      return outputOrdinates;
-    }
   }
 
   private EnumSet<Ordinate> outputOrdinates;

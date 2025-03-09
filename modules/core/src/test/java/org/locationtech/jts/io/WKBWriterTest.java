@@ -127,24 +127,33 @@ public class WKBWriterTest extends GeometryTestCase {
         4326,
         "0107000020E61000000900000001010000000000000000000000000000000000F03F01010000000000000000000000000000000000F03F01010000000000000000000040000000000000084001020000000200000000000000000000400000000000000840000000000000104000000000000014400102000000020000000000000000000000000000000000F03F000000000000004000000000000008400102000000020000000000000000001040000000000000144000000000000018400000000000001C4001030000000200000005000000000000000000000000000000000000000000000000000000000000000000244000000000000024400000000000002440000000000000244000000000000000000000000000000000000000000000000005000000000000000000F03F000000000000F03F000000000000F03F0000000000002240000000000000224000000000000022400000000000002240000000000000F03F000000000000F03F000000000000F03F01030000000200000005000000000000000000000000000000000000000000000000000000000000000000244000000000000024400000000000002440000000000000244000000000000000000000000000000000000000000000000005000000000000000000F03F000000000000F03F000000000000F03F0000000000002240000000000000224000000000000022400000000000002240000000000000F03F000000000000F03F000000000000F03F0103000000010000000500000000000000000022C0000000000000000000000000000022C00000000000002440000000000000F0BF0000000000002440000000000000F0BF000000000000000000000000000022C00000000000000000");
   }
+
+  public void testWkbLineStringM() {
+    checkWKB(
+        "LINESTRING M(1 2 3, 5 6 7)",
+        4,
+        ByteOrderValues.LITTLE_ENDIAN,
+        -1,
+        "010200004002000000000000000000F03F00000000000000400000000000000840000000000000144000000000000018400000000000001C40");
+  }
   
   public void testWkbLineStringZM() throws ParseException {
       LineString lineZM = new GeometryFactory().createLineString(new Coordinate[]{new CoordinateXYZM(1,2,3,4), new CoordinateXYZM(5,6,7,8)});
       byte[] write = new WKBWriter(4).write(lineZM);
 
-      LineString deserialisiert = (LineString) new WKBReader().read(write);
+      LineString lineZMRead = (LineString) new WKBReader().read(write);
 
-      assertEquals(lineZM, deserialisiert);
-      
-      assertEquals(1.0, lineZM.getPointN(0).getCoordinate().getX());
-      assertEquals(2.0, lineZM.getPointN(0).getCoordinate().getY());
-      assertEquals(3.0, lineZM.getPointN(0).getCoordinate().getZ());
-      assertEquals(4.0, lineZM.getPointN(0).getCoordinate().getM());
-      
-      assertEquals(5.0, lineZM.getPointN(1).getCoordinate().getX());
-      assertEquals(6.0, lineZM.getPointN(1).getCoordinate().getY());
-      assertEquals(7.0, lineZM.getPointN(1).getCoordinate().getZ());
-      assertEquals(8.0, lineZM.getPointN(1).getCoordinate().getM());
+      assertEquals(lineZM, lineZMRead);
+
+      assertEquals(1.0, lineZMRead.getPointN(0).getCoordinate().getX());
+      assertEquals(2.0, lineZMRead.getPointN(0).getCoordinate().getY());
+      assertEquals(3.0, lineZMRead.getPointN(0).getCoordinate().getZ());
+      assertEquals(4.0, lineZMRead.getPointN(0).getCoordinate().getM());
+
+      assertEquals(5.0, lineZMRead.getPointN(1).getCoordinate().getX());
+      assertEquals(6.0, lineZMRead.getPointN(1).getCoordinate().getY());
+      assertEquals(7.0, lineZMRead.getPointN(1).getCoordinate().getZ());
+      assertEquals(8.0, lineZMRead.getPointN(1).getCoordinate().getM());
   }
 
   void checkWKB(String wkt, int dimension, String expectedWKBHex) {
